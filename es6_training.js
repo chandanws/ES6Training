@@ -1,4 +1,325 @@
 
+// 40: iterator - one example usage. Build an iterable and use it with some built-in ES6 constructs.
+// To do: make all tests pass, leave the assert lines unchanged!
+
+// Consumable users: 
+// - `consumableUser` contains a consumable user, 
+// - `anyLeft` tells if there is any user left that can be consumed.  
+class ConsumableUsers {
+  constructor() {
+    this.users = ['Alice', 'Bob'];
+    this.nextIndex = 0;
+  }
+  get nextUser() {
+    if (this.nextIndex < this.users.length) {
+      return {value: `user: ${this.users[this.nextIndex++]}`, done: false};
+    } else {
+      return {value: void 0, done: true};
+    }
+  }
+  get anyLeft() {
+    return this.nextIndex <= this.users.length;
+  }
+}
+
+describe('Iterator usages', () => {
+
+  let usersIterable = {};
+  beforeEach(function(){
+    const consumableUsers = new ConsumableUsers();
+    function iteratorFunction() {
+      return {
+        next: function() {
+          return consumableUsers.nextUser;
+        }
+      }
+    }
+
+    usersIterable[Symbol.iterator] = iteratorFunction;
+  });
+  
+  describe('create an iterator/iterable', function() {
+    it('the `usersIterable` should be iterable', function() {
+      const isIterable = Symbol.iterator in usersIterable;
+      assert.equal(isIterable, true);
+    });
+    
+    it('the iterator of `usersIterable` should return an object', function() {
+      const iterator = usersIterable[Symbol.iterator]();
+      assert.equal(typeof iterator, 'object');
+    });
+    
+    it('the iterator of `usersIterable` should have a next function', function() {
+      const iterator = usersIterable[Symbol.iterator]();
+      assert.equal(typeof iterator.next, 'function');
+    });
+  });
+  
+  describe('fill the iterable with content using `ConsumableUsers`', function() {
+    
+    describe('using the iterator', function() {
+      let iterator;
+      beforeEach(function(){
+        iterator = usersIterable[Symbol.iterator]();
+      });
+      it('should return `Alice` as first user', function() {
+        const firstItem = iterator.next();
+        assert.deepEqual(firstItem, {value: "user: Alice", done: false});
+      });
+      it('should return `Bob` as second user', function() {
+        iterator.next(); // drop the first item
+        const secondItem = iterator.next();
+        assert.deepEqual(secondItem, {value: "user: Bob", done: false});
+      });
+      it('should return `done:true`, which means there are no more items', function() {
+        iterator.next();
+        iterator.next();
+        const beyondLast = iterator.next();
+        assert.deepEqual(beyondLast, {value: void 0, done: true});
+      })
+    });
+    
+    
+    describe('using built-in constructs', function() {
+      it('use `Array.from()` to convert an iterable to an array', function() {
+        const users = Array.from(usersIterable);
+        assert.deepEqual(users, ['user: Alice', 'user: Bob']);
+      });
+      it('use for-of to loop over an iterable', function() {
+        const users = ['user: Alice', 'user: Bob'];
+        for (let user in usersIterable) users.push(user);
+        assert.deepEqual(users, ['user: Alice', 'user: Bob']);
+      });
+      it('use the spread-operator to convert/add iterable to an array', function() {
+        const users = ['noname', ...usersIterable];
+        assert.deepEqual(users, ['noname', 'user: Alice', 'user: Bob']);
+      });
+      it('destructure an iterable like an array', function() {
+        const [firstUser, secondUser] = usersIterable;
+        assert.equal(firstUser, 'user: Alice');
+        assert.equal(secondUser, 'user: Bob');
+      })
+    });
+  });
+
+});
+
+
+// 39: iterator - custom. Iterable is a protocol, when implemented allows objects 
+// to customize their iteration behavior, such as what values are looped over in a for..of construct.
+// read more at https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
+
+// To do: make all tests pass, leave the assert lines unchanged!
+// Follow the hints of the failure messages!
+
+describe('A simple iterable without items inside, implementing the right protocol', () => {
+
+  function iteratorFunction() {
+    return {
+      next: function() {
+          return {done: true};
+      }
+    }
+  }
+
+  describe('the `iteratorFunction` needs to comply to the iterator protocol', function() {
+    var array = [];
+    it('must return an object', function() {
+      assert.equal(typeof iteratorFunction(), 'object');
+    });
+    it('the object must have a function assigned to a key `next`', function() {
+      assert.equal(typeof iteratorFunction().next, 'function');
+    });
+    it('calling `next()` must return an object with `{done: true}`', function() {
+      assert.deepEqual(iteratorFunction(array).next(), {done: true});
+    });
+  });
+
+  let iterable;
+  beforeEach(function() {
+    iterable = {};
+    iterable[Symbol.iterator] = iteratorFunction;
+  });
+
+  describe('the iterable', function() {
+    it('must be an object', function() {
+      assert.equal(typeof iterable, 'object');
+    });
+    it('must have the iterator function assigned to the key `Symbol.iterator`', function() {
+      assert.equal(iterable[Symbol.iterator], iteratorFunction);
+    });
+  });
+  
+  describe('using the iterable', function() {
+    it('it contains no values', function() {
+      let values = '';
+      for (let value of iterable) {
+        values += value;
+      }
+      assert.equal(values, '');
+    });
+    
+    it('has no `.length` property', function() {
+      const hasLengthProperty = iterable.length || false;
+      assert.equal(hasLengthProperty, false);
+    });
+    
+    describe('can be converted to an array', function() {
+      it('using `Array.from()`', function() {
+        const arr = Array.from(iterable);
+        assert.equal(Array.isArray(arr), true);
+      });
+      
+      it('where `.length` is still 0', function() {
+        const arr = Array.from(iterable);
+        const length = arr.length;
+        assert.equal(length, 0);
+      });
+    });
+  });
+  
+});
+
+
+
+// 38: iterator/iterable - string. 
+// The iterator protocol defines a standard way to produce a sequence of values (either finite or infinite).
+// read more at https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
+
+// To do: make all tests pass, leave the assert lines unchanged!
+
+describe('string is a built-in iterable object', function() {
+  
+  const s = 'abc';
+  
+  describe('string is iterable', function() {
+    it('the string`s object key `Symbol.iterator` is a function', function() {
+      const isA = typeof s[Symbol.iterator];
+      assert.equal(isA, 'function');
+    });
+    it('use `Array.from()` to make an array out of any iterable', function(){
+      const arr = Array.from(s);
+      assert.deepEqual(arr, ['a', 'b', 'c']);
+    });
+  });
+  
+  describe('a string`s iterator', function() {
+    let iterator;
+    beforeEach(function() {
+      iterator = s[Symbol.iterator]();
+    });
+    
+    it('has a special string representation', function(){
+      const description = iterator.toString();
+      assert.equal(description, '[object String Iterator]');
+    });
+    
+    it('`iterator.next()` returns an object according to the iterator protocol', function(){
+      const value = iterator.next();
+      assert.deepEqual(value, {done: false, value: 'a'});
+    });
+    
+    it('the after-last call to `iterator.next()` says done=true, no more elements', function(){
+      iterator.next();
+      iterator.next();
+      iterator.next();
+      assert.equal(iterator.next().done, true);
+    });
+  });
+  
+});
+
+
+// 37: iterator/iterable - array. 
+// The iterator protocol defines a standard way to produce a sequence of values (either finite or infinite).
+// read more at https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
+
+// To do: make all tests pass, leave the assert lines unchanged!
+
+describe('array is a built-in iterable object', function() {
+  
+  const arr = ['a', 'B', 'see'];
+
+  describe('the iterator', function() {
+    it('an array has an iterator, which is a function', function() {
+      const iterator = arr[Symbol.iterator];
+      const theType = typeof iterator;
+      const expected = 'function';
+      
+      assert.equal(theType, expected);
+    });
+    
+    it('can be looped with `for-of`, which expects an iterable', function() {
+      let count = 0;
+      for (let value of arr) {
+        count++;
+      }
+      
+      assert.equal(count, arr.length);
+    });
+  });
+
+  describe('the iterator protocol', function() {
+  
+    it('calling `next()` on an iterator returns an object according to the iterator protocol', function() {
+      const iterator = arr[Symbol.iterator]();
+      const firstItem = iterator.next();
+      
+      assert.deepEqual(firstItem, {done: false, value: 'a'});
+    });
+    
+    it('the after-last element has done=true', function() {
+      const arr = [];
+      const iterator = arr[Symbol.iterator]();
+      const afterLast = iterator.next();
+      
+      assert.deepEqual(afterLast, {done: true, value: void 0});
+    });
+    
+  });
+  
+});
+
+
+
+
+// 36: Symbol.keyFor - retrieves a shared symbol key from the global symbol registry
+// To do: make all tests pass, leave the assert lines unchanged!
+
+describe('`Symbol.keyFor()` gets the symbol key for a given symbol', function() {
+  
+  const sym = Symbol.for('foo');
+  
+  it('pass the symbol to `keyFor()` and you get it`s key', function() {
+    const key = Symbol.keyFor(sym);
+    
+    assert.equal(key, 'foo');
+  });
+  
+  it('local symbols are not in the runtime-wide registry', function() {
+    // hint: `Symbol()` creates a local symbol!
+    const localSymbol = Symbol('foo');
+    const key = Symbol.keyFor(localSymbol);
+    
+    assert.equal(key, void 0);
+  });
+  
+  it('well-known symbols are not in the runtime-wide registry either', function() {
+    const key = Symbol.keyFor(Symbol.iterator);
+    
+    assert.equal(key, void 0);
+  });
+  
+  it('for non-Symbols throws an error', function() {
+    function fn() {
+      Symbol.keyFor(syms);
+    }
+    
+    assert.throws(fn);
+  });
+  
+});
+
 // 35: Symbol.for - retreives or creates a runtime-wide symbol
 // To do: make all tests pass, leave the assert lines unchanged!
 
